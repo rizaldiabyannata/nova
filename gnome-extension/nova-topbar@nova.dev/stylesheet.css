@@ -1,0 +1,4 @@
+/* The whole bar goes clear while Nova is docked; only its icons and Nova remain. */
+#panel.nova-topbar {
+  background-color: transparent;
+}

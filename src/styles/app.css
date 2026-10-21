@@ -1,0 +1,2142 @@
+/* The notch is always a dark surface, like hardware, so there is one palette (after the Nusa site). */
+:root {
+  --void: #03040a;
+  --ink: #eceff7;
+  --ink-muted: #8c94a8;
+  --surface: #0a0d18;
+  --line: rgb(236 239 247 / 0.1);
+  --line-strong: rgb(236 239 247 / 0.24);
+  --field: rgb(255 255 255 / 0.07);
+  --field-hover: rgb(255 255 255 / 0.12);
+  /* Solid steps for round controls and the avatar disc, so they sit on the black without a white haze. */
+  --control: #181820;
+  --control-hover: #292832;
+  /* Inputs: a violet-tinted well with a border that lifts on hover and takes the accent on focus. */
+  --input-bg: #14121c;
+  --input-border: #34303e;
+  --input-border-hover: #51475f;
+  --label: #c4b9d2;
+  --hint: #7e728e;
+  --radius-input: 7px;
+  --focus: #ffffff;
+  --tone-ok: #6ee7a8;
+  --tone-demo: #f5c26b;
+  --tone-off: rgb(236 239 247 / 0.45);
+  --tone-bad: #ff8a8a;
+  --radius-pill: 999px;
+  --radius-card: 14px;
+  --radius-field: 10px;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* Notch geometry. The window is 420px wide (App.tsx WINDOW_WIDTH): widths plus two shoulders must fit, so keep them at or below 390px. */
+  --notch-offset: 0px;
+  /* Compact notch matches the GNOME top bar so it reads as part of the bar.
+     ponytail: fixed to Yaru's 32px bar; read Main.panel.height via the extension if other themes matter. */
+  --notch-height: 32px;
+  --notch-radius: 28px;
+  --shoulder: 14px;
+  --notch-compact-width: 112px;
+  --notch-playing-width: 220px;
+  --notch-peek-width: 360px;
+  --notch-expanded-width: 390px;
+
+  color-scheme: dark;
+  color: var(--ink);
+  font: 14px/1.4 system-ui, Ubuntu, Cantarell, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: transparent;
+}
+
+/* Stand-in wallpaper (browser preview only), light at the top and dark at the bottom, so the notch can be checked on both. */
+html[data-shell='browser'] body {
+  background: linear-gradient(160deg, #f6dcc8 0%, #bccbf2 40%, #2b3452 100%) fixed; /* taste-skill-ignore: not part of the app */
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.nova {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--notch-offset) 8px 12px;
+}
+
+/* Notch: hangs from the top edge; compact → peek (hover) → expanded (click pins the same peek open). */
+
+/* Plain near-black body, no edge, glow or blur, so the notch reads as part of the bar. */
+.pill {
+  background: var(--void);
+  /* The notch floats over other windows, so it carries a floating thing's shadow. */
+  box-shadow: 0 6px 16px rgb(0 0 0 / 0.3); /* taste-skill-ignore */
+}
+
+.pill {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  width: var(--notch-compact-width);
+  min-height: var(--notch-height);
+  padding: 6px 8px;
+  border-radius: 0 0 var(--notch-radius) var(--notch-radius);
+  transition:
+    width 0.3s var(--ease),
+    padding 0.3s var(--ease),
+    border-radius 0.3s var(--ease);
+}
+
+/* Shoulders: concave curves that blend the pill into the top edge of the screen. */
+.pill::before,
+.pill::after {
+  position: absolute;
+  top: 0;
+  width: var(--shoulder);
+  height: var(--shoulder);
+  content: '';
+  pointer-events: none;
+}
+
+.pill::before {
+  right: 100%;
+  /* A hard-edged mask that cuts the concave shoulder, not a colour fade. */
+  background: radial-gradient(circle at 0 100%, transparent 13.5px, var(--void) 14px); /* taste-skill-ignore */
+}
+
+.pill::after {
+  left: 100%;
+  background: radial-gradient(circle at 100% 100%, transparent 13.5px, var(--void) 14px); /* taste-skill-ignore: shoulder mask */
+}
+
+/* Set per page from its content (IdleScene); the width transition animates each change.
+   Expanded is the same view pinned open, so it takes the same width. */
+[data-mode='peek'] .pill,
+[data-mode='expanded'] .pill {
+  width: var(--peek-width, var(--notch-peek-width));
+  /* Horizontal padding is PEEK_INSET in IdleScene. */
+  padding: 12px 16px 4px;
+}
+
+/* Compact: one bar-high row with only Lumi and the clock, plus the one live item (focus, a playing track,
+   an event soon), so it covers almost nothing of the window beneath. The rest appears on peek. */
+[data-mode='compact'] .pill-name,
+[data-mode='compact'] .pill-date,
+[data-mode='compact'] .pill-emoji,
+[data-mode='compact'] .pill-widget,
+[data-mode='compact'] .pill-text:not(:has([data-tone='ok'])) {
+  display: none;
+}
+
+[data-mode='compact'] .pill {
+  height: var(--notch-height);
+  padding: 0 10px;
+  border-radius: 0 0 14px 14px;
+  font-size: 12px;
+}
+
+[data-mode='compact'] .pill:has(.pill-status [data-tone='ok']) {
+  width: var(--notch-playing-width);
+}
+
+[data-mode='compact'] .pill-main {
+  gap: 8px;
+}
+
+[data-mode='compact'] .pill-mascot {
+  width: 22px;
+  height: 22px;
+}
+
+[data-mode='compact'] .lumi {
+  width: 18px;
+  height: 18px;
+}
+
+[data-mode='compact'] .pill-status {
+  font-size: 12px;
+}
+
+[data-mode='compact'] .pill-clock {
+  margin-left: auto;
+}
+
+.pill-main {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: none;
+  text-align: left;
+}
+
+/* Lumi sits in a disc, like an avatar. */
+.pill-mascot {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--control-hover);
+  /* Grows with the pill on hover instead of jumping from the compact size. */
+  transition:
+    width 0.3s var(--ease),
+    height 0.3s var(--ease);
+}
+
+/* A small accent coin, cut out of the disc by a ring of the notch's black. */
+.pill-emoji {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--void);
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 9px;
+  line-height: 1;
+}
+
+.pill-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pill-name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pill-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--ink-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.pill-status-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pill-widget {
+  flex: none;
+  animation: fade-up 0.35s var(--ease);
+}
+
+.pill-widget::before {
+  margin-right: 6px;
+  color: var(--line-strong);
+  content: '·';
+}
+
+/* Hover pages sit on their own row under the pill's main row, behind a hairline. */
+.pill-page {
+  display: flex;
+  flex: 1 0 100%;
+  flex-direction: column;
+  gap: 4px;
+  /* Without this a card's intrinsic width pushes the page past the notch. */
+  min-width: 0;
+  /* While the pill animates to a wider page, the new page waits inside instead of spilling out. */
+  overflow: hidden;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+/* Sized by its content, not the pill, so it can be measured; capped at the widest notch less the insets.
+   Only this region scrolls, so the notch stays shallow over the windows beneath. */
+.pill-page-body {
+  align-self: center;
+  width: max-content;
+  min-width: 0;
+  max-width: calc(var(--notch-expanded-width) - 32px);
+  max-height: 240px;
+  overflow-y: auto;
+  /* Room for focus rings, which the scroll box would otherwise clip. */
+  padding: 4px;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--control-hover) transparent;
+  scrollbar-width: thin;
+  animation: fade-up 0.3s var(--ease);
+}
+
+/* Lyrics change line every few seconds and the music bar has no width of its own:
+   both take the full notch, which also keeps it from twitching between them. */
+.pill-page-body:has(.lyrics-page, .music, .settings, .entry-form, .agenda-calendar, .clipboard-feature, .shelf-feature) {
+  width: calc(var(--notch-expanded-width) - 32px);
+}
+
+/* The agenda shows its whole month at once, so it gets more height than other pages. */
+.pill-page-body:has(.agenda-calendar) {
+  max-height: 300px;
+}
+
+/* Arrows at the ends, dots centred on the notch, Settings beside the next arrow. */
+.pager-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  min-height: 36px;
+}
+
+.pager {
+  display: flex;
+  grid-column: 2;
+  justify-content: center;
+}
+
+.pager-tools {
+  display: flex;
+  grid-column: 3;
+  justify-self: end;
+  align-items: center;
+  gap: 4px;
+}
+
+.icon-btn.small.page-arrow {
+  background: var(--control);
+  color: var(--ink);
+}
+
+.icon-btn.small.page-arrow:hover {
+  background: var(--control-hover);
+}
+
+/* A 24px target around a 6px dot (WCAG 2.5.8). */
+.pager button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.pager button::before {
+  width: 4px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: #3f3f4d;
+  content: '';
+  transition: background-color 0.2s var(--ease);
+}
+
+.pager button:hover::before {
+  background: var(--ink-muted);
+}
+
+/* Navigation stays neutral; the accent is kept for data and the primary action. */
+/* A real 10px capsule: scaling the 4px dot would stretch it into an oval. */
+.pager button[aria-current='page']::before {
+  width: 10px;
+  background: #e5e3ed;
+}
+
+/* The track as a header button, then the lines hung off a rule on the left. */
+.lyrics-track {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0 0 10px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  text-align: left;
+}
+
+.lyrics-track-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--control);
+}
+
+.lyrics-track-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.lyrics-track-text > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lyrics-track-text strong {
+  font-weight: 600;
+}
+
+.lyrics-track-text span,
+.lyrics-track-state {
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.lyrics-track-state {
+  flex: none;
+}
+
+.lyrics {
+  margin: 12px 0 4px;
+  padding: 0 0 0 14px;
+  border-left: 2px solid var(--line);
+}
+
+.lyrics.hint {
+  padding: 6px 0;
+  border: 0;
+  text-align: center;
+}
+
+.lyrics p {
+  margin: 0;
+}
+
+.lyric-now {
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.lyric-next,
+.lyric-prev {
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+
+.lyric-prev {
+  opacity: 0.6;
+}
+
+.lyrics-plain {
+  max-height: 5.6em;
+  overflow-y: auto;
+  color: var(--ink-muted);
+  font-size: 14px;
+  white-space: pre-line;
+}
+
+.pill-clock {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.2;
+}
+
+.nova:not([data-mode='compact']) .pill-time {
+  font-size: 15px;
+}
+
+.pill-time {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.pill-date {
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.chip {
+  display: inline-flex;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 50%;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--field);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chip-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tone-off);
+}
+
+.chip-dot[data-tone='ok'] {
+  background: var(--tone-ok);
+}
+
+.chip-dot[data-tone='demo'] {
+  background: var(--tone-demo);
+}
+
+.chip-dot[data-tone='bad'] {
+  background: var(--tone-bad);
+}
+
+/* Icon buttons */
+
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* The open Settings is a neutral step up, not a coloured pill. Doubled class: outranks .icon-btn.small below. */
+.icon-btn.icon-btn[aria-pressed='true'] {
+  background: var(--field-hover);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.icon-btn {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--field);
+}
+
+/* Not on a pressed button: it would paint over the accent and leave a dark icon on near-black. */
+.icon-btn:not([aria-pressed='true']):hover {
+  background: var(--field-hover);
+}
+
+.feature.ai {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Label beside the control, so the period picker costs one row. */
+.field.inline {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: var(--radius-card);
+  background: var(--field);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.card h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.card-value {
+  margin: 0;
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.card-detail,
+.card-meta,
+.hint {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.card-meta {
+  margin-top: auto;
+  font-size: 12px;
+}
+
+/* Features (music, agenda, alarm, focus): one fact set large, then quiet rows straight on the notch's black.
+   Type does the work on a four-step scale: 12 meta, 14 body, 20 lead, 32 figures. The accent marks data
+   (progress) and the one primary action per feature, nothing else. */
+.feature {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 4px 4px 2px;
+}
+
+.feature-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lead {
+  min-width: 0;
+}
+
+.lead p {
+  margin: 0;
+}
+
+.lead-value {
+  overflow: hidden;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Times and countdowns: regular weight, tabular, the largest thing in the feature. */
+.lead-value.figure {
+  font-size: 32px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.lead-caption {
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--ink-muted);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.group-title {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* A long agenda scrolls with the page body (.pill-page-body), never in a box of its own. */
+.rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  border-bottom: 1px solid rgb(255 255 255 / 0.04);
+  font-size: 14px;
+}
+
+.row-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row-meta {
+  flex: none;
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.row-figure {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+/* Past events and switched-off alarms step back. */
+.row[data-dim] .row-text,
+.row[data-dim] .row-figure {
+  color: var(--ink-muted);
+}
+
+.icon-btn.small {
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  color: var(--ink-muted);
+}
+
+/* Remove stays out of the way until the row is pointed at or focused. */
+.row-remove {
+  opacity: 0;
+  transition: opacity 0.15s var(--ease);
+}
+
+.row:hover .row-remove,
+.row:focus-within .row-remove {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .row-remove {
+    opacity: 1;
+  }
+}
+
+/* A 28×16 switch, built on a real checkbox. */
+.switch {
+  position: relative;
+  flex: none;
+  width: 28px;
+  height: 16px;
+  margin: 0;
+  border-radius: var(--radius-pill);
+  background: var(--line-strong);
+  cursor: pointer;
+  appearance: none;
+  transition: background-color 0.2s var(--ease);
+}
+
+.switch::before {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--ink);
+  content: '';
+  transition: transform 0.2s var(--ease);
+}
+
+.switch:checked {
+  background: var(--accent);
+}
+
+.switch:checked::before {
+  background: var(--on-accent);
+  transform: translateX(12px);
+}
+
+.add-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-muted);
+  font-size: 14px;
+}
+
+.add-toggle:hover {
+  color: var(--ink);
+}
+
+/* The add form takes the page: a heading, then name and time side by side, date beside the actions. */
+.entry-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.entry-heading strong {
+  font-weight: 600;
+}
+
+.entry-heading span {
+  color: var(--hint);
+  font-size: 12px;
+}
+
+.entry-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 8px 10px;
+}
+
+.entry-form {
+  gap: 8px;
+}
+
+/* An event's name takes the full row, with date and time under it; an alarm keeps label and time side by side. */
+.entry-event .entry-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.entry-event .entry-fields > :first-child,
+.field-error,
+.entry-actions {
+  grid-column: 1 / -1;
+}
+
+.entry-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.field-error {
+  margin: 0;
+  color: var(--tone-bad);
+  font-size: 12px;
+}
+
+.text-btn {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Secondary actions: present, not loud. */
+.text-btn.quiet {
+  background: var(--field);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.text-btn.quiet:hover {
+  background: var(--field-hover);
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stepper .icon-btn.small {
+  background: var(--field);
+}
+
+.stepper-value {
+  min-width: 56px;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.progress {
+  flex: 1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--line);
+}
+
+.progress span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transform-origin: left;
+  transition: transform 1s linear;
+}
+
+.track-time {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.media-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Play/pause is the music feature's one primary action. */
+.icon-btn.primary {
+  width: 44px;
+  height: 44px;
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.icon-btn.primary:hover {
+  background: color-mix(in srgb, var(--accent) 85%, white);
+}
+
+/* Primary actions give a little under the pointer. */
+.icon-btn.primary,
+.text-btn:not(.quiet) {
+  transition: transform 0.18s var(--ease);
+}
+
+.icon-btn.primary:hover,
+.text-btn:not(.quiet):hover {
+  transform: scale(1.04);
+}
+
+.icon-btn.primary:active,
+.text-btn:not(.quiet):active {
+  transform: scale(0.96);
+}
+
+.text-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Agenda: the whole month (up to six weeks) beside the picked day, no scrolling the grid.
+   Type drops below the 12px meta step only for weekday letters and hints (11px). */
+.agenda-calendar {
+  display: grid;
+  grid-template-columns: 196px minmax(0, 1fr);
+  gap: 12px;
+  padding: 0;
+}
+
+.agenda-calendar button:not(.text-btn) {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.calendar-pane,
+.calendar-day-panel {
+  min-width: 0;
+}
+
+.calendar-month-heading {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  min-height: 28px;
+}
+
+.calendar-month-heading > button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 5px;
+  color: #93859f;
+}
+
+.calendar-month-heading > button:hover {
+  background: #211b2b;
+  color: #e7dcf1;
+}
+
+.calendar-month-heading > strong {
+  flex: 1;
+  color: #e5d9ef;
+  font-size: 13px;
+  font-weight: 550;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.calendar-month-heading > button.calendar-today {
+  width: 44px;
+  margin-left: 2px;
+  background: #19151f;
+  font-size: 11px;
+}
+
+.calendar-weekdays,
+.calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, 28px);
+}
+
+.calendar-weekdays {
+  color: #706078;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+}
+
+.calendar-days button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 28px;
+  border-radius: 7px;
+  color: #b8a9c5;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.calendar-days button:hover {
+  background: #25202e;
+  color: #f0e7f8;
+}
+
+.calendar-days button.outside {
+  color: #4e435b;
+}
+
+.calendar-days button.today:not(.selected) {
+  outline: 1px solid #5d516b;
+  outline-offset: -3px;
+  color: #f0e6fb;
+}
+
+.calendar-days button.selected {
+  background: #e5ddee;
+  color: #17121f;
+  font-weight: 600;
+}
+
+.calendar-days button > i {
+  position: absolute;
+  bottom: 2px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.calendar-days button.selected > i {
+  background: #40314f;
+}
+
+.calendar-helper {
+  display: block;
+  margin-top: 4px;
+  color: #75647f;
+  font-size: 11px;
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+.calendar-day-panel {
+  display: flex;
+  flex-direction: column;
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
+}
+
+.calendar-day-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  min-height: 28px;
+}
+
+.calendar-day-heading > strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #dacbe5;
+  font-size: 13px;
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-day-heading > span {
+  color: #83718f;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.calendar-day-events {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  scrollbar-color: #34303f transparent;
+  scrollbar-width: thin;
+}
+
+.calendar-event {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  border-bottom: 1px solid rgb(255 255 255 / 0.03);
+  font-size: 12px;
+}
+
+.calendar-event[data-dim] {
+  opacity: 0.5;
+}
+
+.calendar-event > time {
+  color: #a394b4;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.calendar-event > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: #c3b3d0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-event .row-remove {
+  width: 24px;
+  height: 24px;
+}
+
+.calendar-event:hover .row-remove,
+.calendar-event:focus-within .row-remove {
+  opacity: 1;
+}
+
+.calendar-day-empty {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 1;
+  gap: 5px;
+  margin: 0;
+  color: #b1a0be;
+  font-size: 12px;
+}
+
+.calendar-day-empty > span {
+  color: #71617d;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.agenda-calendar .calendar-new-event {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  min-height: 32px;
+  margin-top: 6px;
+  border: 1px solid #302538;
+  border-radius: 7px;
+  color: #b7a2c8;
+  font-size: 12px;
+}
+
+.agenda-calendar .calendar-new-event:hover {
+  background: #201728;
+  color: #f0dfff;
+}
+
+.calendar-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.calendar-composer .field {
+  gap: 3px;
+}
+
+.calendar-composer .field-label {
+  font-size: 11px;
+}
+
+.calendar-composer .field input {
+  height: 32px;
+  min-height: 32px;
+  padding: 5px 8px;
+  font-size: 12px;
+}
+
+.calendar-compose-bottom {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.calendar-compose-bottom > .field {
+  flex: 1;
+  min-width: 0;
+}
+
+.agenda-calendar .text-btn.calendar-add {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 7px;
+  font-size: 12px;
+}
+
+.calendar-composer .field-error {
+  font-size: 11px;
+}
+
+.agenda-calendar .calendar-edit-cancel {
+  min-height: 24px;
+  padding: 0 2px;
+  color: #aa8cbd;
+  font-size: 11px;
+}
+
+.agenda-calendar .calendar-edit-cancel:hover {
+  color: #e4cff3;
+}
+
+/* Music: the track beside its controls, the time beside the tools, so the page spends width, not height. */
+.feature.music {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px 12px;
+}
+
+.track {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.track-art {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 18%, var(--control));
+  color: var(--accent);
+}
+
+.track-art img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
+/* Four bars beside the title; they move only while the track plays. */
+.equalizer {
+  display: flex;
+  flex: none;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+}
+
+/* Full-height bars scaled from the bottom: animating height would re-layout the page every frame while music plays. */
+.equalizer i {
+  width: 3px;
+  height: 100%;
+  border-radius: 1px;
+  background: var(--accent);
+  transform: scaleY(0.3);
+  transform-origin: bottom;
+}
+
+.equalizer[data-playing] i {
+  animation: equalize 0.9s ease-in-out infinite alternate;
+}
+
+.equalizer i:nth-child(2) { animation-delay: -0.3s; }
+.equalizer i:nth-child(3) { animation-delay: -0.6s; }
+.equalizer i:nth-child(4) { animation-delay: -0.15s; }
+
+@keyframes equalize {
+  from { transform: scaleY(0.25); }
+  to { transform: scaleY(1); }
+}
+
+/* An invisible range over the progress bar: the bar stays the look, the input takes pointer and keys. */
+.seek {
+  display: grid;
+  flex: 1;
+  align-items: center;
+}
+
+.seek > * {
+  grid-area: 1 / 1;
+}
+
+.seek input {
+  width: 100%;
+  height: 16px;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.seek:has(input:focus-visible) .progress {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.music .media-controls {
+  gap: 4px;
+}
+
+.music-tools {
+  display: flex;
+  gap: 4px;
+  grid-column: 2;
+  justify-content: flex-end;
+}
+
+/* Focus: dial and time on the left, both actions stacked on the right, length or progress below. */
+.feature.focus {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.focus-overview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.focus-actions {
+  display: flex;
+  grid-row: span 2;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dial {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+}
+
+.dial > svg:first-child {
+  position: absolute;
+  inset: 0;
+  fill: none;
+  stroke-width: 6;
+  transform: rotate(-90deg);
+}
+
+.dial-track {
+  stroke: var(--control);
+}
+
+.dial-value {
+  stroke: var(--accent);
+  stroke-linecap: round;
+}
+
+/* Settings */
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Section tabs: a quiet step up for the open one, never the accent. */
+.tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.tabs button {
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.tabs button[aria-pressed='true'] {
+  background: var(--control-hover);
+  color: var(--ink);
+}
+
+.settings-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+}
+
+/* Fields: a permanent label (with an optional note at its right), the control below. */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  font-size: 14px;
+}
+
+.field-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  color: var(--label);
+  font-size: 12px;
+}
+
+.key-control {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.key-control input {
+  flex: 1;
+  min-width: 0;
+}
+
+.field-label small {
+  color: var(--hint);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.field input:not([type='range']),
+.field select,
+.field textarea,
+.accent-control {
+  width: 100%;
+  min-width: 0;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-input);
+  background: var(--input-bg);
+  color: var(--ink);
+  font-size: 14px;
+  color-scheme: dark;
+}
+
+.field input:not([type='range']):hover,
+.field select:hover,
+.field textarea:hover {
+  border-color: var(--input-border-hover);
+}
+
+.field input:not([type='range']):focus-visible,
+.field select:focus-visible,
+.field textarea:focus-visible {
+  border-color: var(--accent);
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.field input::placeholder,
+.field textarea::placeholder {
+  color: var(--hint);
+  opacity: 1;
+}
+
+.field input[aria-invalid='true'],
+.field input[aria-invalid='true']:focus-visible {
+  border-color: var(--tone-bad);
+  outline-color: var(--tone-bad);
+}
+
+.field input[type='time'],
+.field input[type='date'] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Select with a drawn chevron, so it matches the inputs instead of the toolkit. */
+.select {
+  position: relative;
+  display: flex;
+}
+
+.select select {
+  padding-right: 28px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.select svg {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  color: var(--ink-muted);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.field select option {
+  background: var(--surface);
+}
+
+/* The picker's own swatch plus the hex it holds. */
+.accent-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 6px;
+}
+
+.field .accent-control input[type='color'] {
+  width: 28px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.accent-control:focus-within {
+  border-color: var(--accent);
+}
+
+.accent-control code {
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+/* A switch row: the label at the left, the switch and its written state at the right. */
+.toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 36px;
+  color: var(--label);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.toggle-control {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+}
+
+.toggle-value {
+  width: 22px;
+  color: var(--hint);
+  font-size: 12px;
+}
+
+.switch:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.rotation,
+.settings-fields > .hint {
+  grid-column: 1 / -1;
+}
+
+.rotation input {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.rotation[data-disabled] {
+  opacity: 0.4;
+}
+
+.range-ends {
+  display: flex;
+  justify-content: space-between;
+  color: var(--hint);
+  font-size: 12px;
+}
+
+output {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Lumi motion: transform and opacity only (NFR-001). */
+
+.lumi {
+  overflow: visible;
+  transition:
+    width 0.3s var(--ease),
+    height 0.3s var(--ease);
+}
+
+.lumi-body,
+.lumi-head,
+.lumi-eyes {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* Pivots: the head tilts from the chin, each ear from its base. */
+.lumi-head {
+  transform-origin: 50% 85%;
+}
+
+.lumi-ear {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+
+/* Loops run only while peeking or open: WebKitGTK repaints the whole SVG every frame, ~24% CPU when left on at idle. */
+/* Loop lengths are coprime so the ears and head never fall into a visible rhythm. */
+[data-motion='playful']:not([data-mode='compact']) .lumi-head {
+  animation: head-tilt 17s ease-in-out infinite;
+}
+
+[data-motion='playful']:not([data-mode='compact']) .lumi-ear-l {
+  animation: ear-twitch-l 11s infinite;
+}
+
+[data-motion='playful']:not([data-mode='compact']) .lumi-ear-r {
+  animation: ear-twitch-r 13s 4s infinite;
+}
+
+[data-motion='gentle']:not([data-mode='compact']) .lumi-ear-l {
+  animation: ear-twitch-l 19s infinite;
+}
+
+[data-motion='playful']:not([data-mode='compact']) .lumi-body[data-expression='idle'] {
+  animation: float 3.6s ease-in-out infinite;
+}
+
+[data-motion='playful']:not([data-mode='compact']) .lumi-eyes {
+  animation: blink 4.5s infinite;
+}
+
+[data-motion='gentle']:not([data-mode='compact']) .lumi-eyes {
+  animation: blink 7s infinite;
+}
+
+/* Any non-idle face plays once on mount, then the controller settles back to idle. */
+[data-motion='playful'] .lumi-body:not([data-expression='idle']) {
+  animation: hop 0.5s var(--ease);
+}
+
+[data-motion='gentle'] .lumi-body:not([data-expression='idle']) {
+  animation: tilt 0.6s var(--ease);
+}
+
+@keyframes float {
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes hop {
+  40% {
+    transform: translateY(-4px) scale(1.06);
+  }
+}
+
+@keyframes tilt {
+  50% {
+    transform: rotate(-8deg);
+  }
+}
+
+@keyframes head-tilt {
+  0%,
+  84%,
+  100% {
+    transform: rotate(0);
+  }
+  88%,
+  94% {
+    transform: rotate(-7deg);
+  }
+}
+
+@keyframes ear-twitch-l {
+  0%,
+  95%,
+  100% {
+    transform: rotate(0);
+  }
+  97% {
+    transform: rotate(-14deg);
+  }
+}
+
+@keyframes ear-twitch-r {
+  0%,
+  95%,
+  100% {
+    transform: rotate(0);
+  }
+  97% {
+    transform: rotate(14deg);
+  }
+}
+
+@keyframes blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  96% {
+    transform: scaleY(0.1);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+}
+
+@keyframes drop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+}
+
+/* In-app override and the OS preference both stop every animation (FR-010). */
+[data-motion='none'] *,
+[data-motion='none'] *::before,
+[data-motion='none'] *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+.field textarea {
+  height: auto;
+  padding: 8px 10px;
+  font: inherit;
+  resize: none;
+}
+
+.text-btn.small {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+/* Clipboard and Shelf (Figma "Redesign Nova Notch"): a toolbar, then quiet rows or a strip of files. */
+.clipboard-feature,
+.shelf-feature {
+  gap: 8px;
+}
+
+.tool-toolbar,
+.shelf-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.tool-tabs,
+.tool-toolbar-actions,
+.shelf-header > div {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tool-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.tool-tabs button[aria-pressed='true'] {
+  background: var(--control-hover);
+  color: var(--ink);
+}
+
+.tool-tabs button > span {
+  color: var(--hint);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tool-tabs svg {
+  width: 12px;
+}
+
+.clip-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-input);
+  background: var(--input-bg);
+  color: var(--hint);
+}
+
+.clip-search:hover {
+  border-color: var(--input-border-hover);
+}
+
+.clip-search:focus-within {
+  border-color: var(--accent);
+}
+
+.clip-search input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.clip-search input::placeholder {
+  color: var(--hint);
+}
+
+.clip-row {
+  gap: 2px;
+  min-height: 44px;
+}
+
+.clip-content {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.clip-type {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  background: var(--control);
+  color: var(--label);
+  font-size: 12px;
+}
+
+.clip-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.clip-text > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clip-text strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.clip-text span {
+  color: var(--ink-muted);
+  font-size: 11px;
+}
+
+.clip-content:hover strong {
+  color: var(--accent);
+}
+
+.icon-btn.small.clip-pin[aria-pressed='true'] {
+  background: transparent;
+  color: var(--accent);
+}
+
+.clip-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 56px;
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.tool-note {
+  margin: 0;
+  color: var(--hint);
+  font-size: 11px;
+}
+
+.shelf-header strong {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.shelf-header > span {
+  color: var(--ink-muted);
+  font-size: 11px;
+}
+
+.shelf-body,
+.shelf-preview {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  min-height: 84px;
+}
+
+.shelf-files {
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-color: var(--control-hover) transparent;
+  scrollbar-width: thin;
+}
+
+.shelf-files:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.shelf-file {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 66px;
+  padding: 2px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  text-align: center;
+}
+
+.shelf-file strong {
+  width: 100%;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shelf-file > span {
+  color: var(--ink-muted);
+  font-size: 10px;
+}
+
+.shelf-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  object-fit: cover;
+  transition: transform 0.2s var(--ease);
+}
+
+.shelf-file:hover .shelf-thumb {
+  transform: translateY(-2px);
+}
+
+.shelf-thumb-file {
+  display: grid;
+  place-items: center;
+  background: var(--control);
+  color: var(--label);
+}
+
+.shelf-empty {
+  flex: 1;
+  align-self: center;
+  color: var(--ink-muted);
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.shelf-drop {
+  display: flex;
+  flex: 0 0 116px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 9px;
+  outline: 1px dashed var(--line-strong);
+  outline-offset: -2px;
+  color: var(--ink-muted);
+  transition: transform 0.2s var(--ease), background 0.2s var(--ease);
+}
+
+.shelf-drop svg {
+  width: 20px;
+  height: 20px;
+}
+
+.shelf-drop strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.shelf-drop span {
+  color: var(--hint);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.shelf-drop[data-dragging] {
+  background: var(--control);
+  outline-color: var(--accent);
+  color: var(--ink);
+  transform: scale(0.98);
+}
+
+.shelf-preview {
+  align-items: center;
+}
+
+.shelf-preview .shelf-thumb {
+  width: 58px;
+  height: 58px;
+}
+
+.shelf-preview-detail {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.shelf-preview-detail > strong {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shelf-preview-detail > span {
+  color: var(--ink-muted);
+  font-size: 11px;
+}
+
+.shelf-file-actions {
+  display: flex;
+  gap: 4px;
+}

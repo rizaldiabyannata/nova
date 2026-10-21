@@ -1,0 +1,37 @@
+[package]
+name = "nova"
+version = "0.1.0"
+description = "Linux-first desktop notch companion"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/rizaldiabyannata/nova"
+
+[lib]
+name = "nova_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+base64 = "0.22"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+# Admin API keys go to the Secret Service (GNOME Keyring), never to the store or the webview (NFR-005).
+keyring = { version = "3", features = ["sync-secret-service", "crypto-rust"] }
+log = "0.4"
+mpris = "2"
+# native-tls links the system OpenSSL; the rustls default needs cmake for aws-lc.
+reqwest = { version = "0.13", default-features = false, features = ["json", "query", "native-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = [] }
+tauri-plugin-autostart = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-log = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-single-instance = "2"
+tauri-plugin-store = "2"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = "0.18"

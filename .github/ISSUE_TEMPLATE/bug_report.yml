@@ -1,0 +1,34 @@
+name: Bug report
+description: Something in Nova does not work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the notch
+        2. Go to Agenda
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: Distro, desktop, Wayland or X11, Nova version or commit
+      placeholder: Ubuntu 26.04, GNOME 50, Wayland, main@abc123
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Logs are under ~/.local/share/dev.nova.desktop/logs/. Remove anything private first.

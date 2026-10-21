@@ -1,0 +1,10 @@
+{
+  "uuid": "nova-topbar@nova.dev",
+  "name": "Nova Top Bar",
+  "description": "While Nova runs, docks the Nova notch top-centre in place of the clock. The bar is clear over the wallpaper and solid when a window reaches it.",
+  "shell-version": [
+    "50"
+  ],
+  "url": "https://github.com/",
+  "settings-schema": "org.gnome.shell.extensions.nova-topbar"
+}

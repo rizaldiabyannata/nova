@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.nova-topbar" path="/org/gnome/shell/extensions/nova-topbar/">
+    <key name="solid-under-windows" type="b">
+      <default>true</default>
+      <summary>Solid bar when a window reaches it</summary>
+      <description>Turn the top bar back to its solid background while a maximized or tiled window touches it.</description>
+    </key>
+    <key name="hide-in-fullscreen" type="b">
+      <default>true</default>
+      <summary>Hide Nova in fullscreen</summary>
+      <description>Hide the notch while a fullscreen window (F11, video) is on the primary monitor, like the top bar.</description>
+    </key>
+  </schema>
+</schemalist>
